@@ -9,16 +9,14 @@ from config import (
     CERT_CHECK_TIME,
     ALERT_SEND_TIME
 )
-import logging
-
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s - %(message)s')
+from logger import logger
 
 def parse_time(time_str):
     hour, minute = map(int, time_str.split(":"))
     return hour, minute
 
 def check_cert_expiry():
-    logging.info("Running certificate expiry check...")
+    logger.info("Running certificate expiry check...")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, name, url FROM services")
@@ -30,14 +28,14 @@ def check_cert_expiry():
                 "UPDATE services SET certificate_expiry = ? WHERE id = ?",
                 (expiry_date.strftime("%Y-%m-%d"), service_id)
             )
-            logging.info(f"Updated certificate expiry for {name} ({url}): {expiry_date}")
+            logger.info(f"Updated certificate expiry for {name} ({url}): {expiry_date}")
         except Exception as e:
-            logging.error(f"Error checking certificate for {url}: {e}")
+            logger.error(f"Error checking certificate for {url}: {e}")
     conn.commit()
     conn.close()
 
 def send_alerts():
-    logging.info("Sending alerts...")
+    logger.info("Sending alerts...")
     conn = get_db_connection()
     cursor = conn.cursor()
     today = datetime.utcnow().date()
@@ -49,7 +47,7 @@ def send_alerts():
             subject = f"License Expiry Warning: {name}"
             body = f"The license '{name}' is expiring on {expiry_date}."
             send_email(emails.split(","), subject, body)
-            logging.info(f"Alert email sent for license: {name} → {emails}")
+            logger.info(f"Alert email sent for license: {name} → {emails}")
 
     cursor.execute("SELECT name, certificate_expiry, alert_email FROM services")
     for name, expiry_str, emails in cursor.fetchall():
@@ -59,7 +57,7 @@ def send_alerts():
                 subject = f"Certificate Expiry Warning: {name}"
                 body = f"The SSL certificate for '{name}' is expiring on {expiry_date}."
                 send_email(emails.split(","), subject, body)
-                logging.info(f"Alert email sent for certificate: {name} → {emails}")
+                logger.info(f"Alert email sent for certificate: {name} → {emails}")
     conn.close()
 
 def start_scheduler():
